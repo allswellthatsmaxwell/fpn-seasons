@@ -20,11 +20,18 @@ assertSameWeeksForEveryone <- function(dat) {
 a different number of weeks listed than others.")
 }
 
+assertSameWeeksForEveryoneMultiSeason <- function(dat) {
+  dat %>%
+    split(.$season) %>%
+    lapply(assertSameWeeksForEveryone) %>%
+    invisible()
+}
+
 getDataPaths <- function(data_dir, filter_seasons) {
   assert_that(all(filter_seasons %in% VALID_SEASONS), 
               msg = glue("invalid season found in filter_seasons: '{filter_seasons}'"))
   paths <- list.files(data_dir) %>%
-    .[str_detect(., filter_seasons)] %>%
+    .[sapply(., function(s) s %>% str_detect(filter_seasons) %>% any())] %>%
     sapply(. %>% paste0(data_dir, .))
   assert_that(length(paths) > 0, 
               msg = glue("getDataPaths: didn't find any seasons matching ", 
@@ -37,7 +44,8 @@ getPointsOverSeasonFrame <- function(path) {
   assert_that(!is.na(season),
               msg = glue("could not extract season name from path {path}"))
   assert_that(length(path) == 1)
-  readr::read_csv(path) %>%
+  
+  readr::read_csv(path, show_col_types = FALSE) %>%
     dplyr::select(-`Total Points`) %>%
     tidyr::pivot_longer(!Player, names_to = "date", values_to = "points") %>%
     dplyr::rename_with(tolower) %>%
@@ -46,18 +54,34 @@ getPointsOverSeasonFrame <- function(path) {
     dplyr::arrange(player, date) %>%
     dplyr::group_by(player) %>%
     dplyr::mutate(points_so_far = cumsum(points),
-                  season = season)
+                  season = season) %>%
+    addWeekNumberColumn()
 }
 
-# getPOIFrame <- function(players_of_interest) {
-#   lapply(names(players_of_interest),
-#          function(season) {
-#            players <- players_of_interest[[season]]
-#            lapply(players, function(player) data.frame(season, player)) %>%
-#              dplyr::bind_rows()
-#          }) %>%
-#     dplyr::bind_rows()
-# }
+addWeekNumberColumn <- function(dat) {
+  orig_rowcount <- nrow(dat)
+  result_dat <- dat %>% 
+    ungroup() %>%
+    select(date) %>% 
+    unique() %>% 
+    mutate(week_number = 1:n()) %>%
+    inner_join(dat, by = c("date"))
+  
+  assert_that(nrow(result_dat) == orig_rowcount)
+  
+  result_dat
+}
+
+
+getSeasonsFrame <- function(paths) {
+  paths %>%
+    lapply(getPointsOverSeasonFrame) %>%
+    dplyr::bind_rows() %>%
+    mutate(of_interest = player %in% PLAYERS_OF_INTEREST_SEASONAL[season][[1]]) %>%
+    ungroup()
+}
+
+
 
 
 DATA_DIR <- "data/"
@@ -69,21 +93,27 @@ PLAYERS_OF_INTEREST_SEASONAL <-
 VALID_SEASONS <- names(PLAYERS_OF_INTEREST_SEASONAL)
 
 
-setwd('fpn-analysis/')
+setwd('~/fpn-analysis/')
 
 
-paths <- getDataPaths(DATA_DIR, "summer-2026")
-dat <- getPointsOverSeasonFrame(paths) %>%
-  mutate(of_interest = player %in% PLAYERS_OF_INTEREST_SEASONAL[season][[1]])
-assertSameWeeksForEveryone(dat)
+paths <- getDataPaths(DATA_DIR, VALID_SEASONS)
+paths <- getDataPaths(DATA_DIR, "winter-2026")
+
+dat <- getSeasonsFrame(paths)
+dat
+
+assertSameWeeksForEveryoneMultiSeason(dat)
 
 
 dat %>%
   ggplot(aes(x = date, y = points_so_far, 
-             group = player, color = of_interest)) +
+             group = player, color = of_interest, size = of_interest)) +
   geom_line() +
-  scale_x_date(breaks = "week", date_labels = "%B %d") +
+  scale_x_date(breaks = "week", date_labels = "%b %d") +
+  scale_y_continuous(labels = scales::label_comma()) +
   scale_color_manual(values = c("TRUE" = "black", "FALSE" = "#C1C1C1")) +
+  scale_size_manual(values = c("TRUE" = 1, "FALSE" = 0.5)) +
+  facet_wrap(~season, ncol = 1) +
   theme_bw() +
   theme(legend.position = "none", panel.grid.minor.x = element_blank())
 
