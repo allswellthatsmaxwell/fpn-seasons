@@ -1,5 +1,6 @@
 library(ggplot2)
 library(ggrepel)
+library(ggforce)
 library(tibble)
 library(readr)
 library(tidyr)
@@ -9,7 +10,7 @@ library(magrittr)
 library(lubridate)
 library(assertthat)
 library(glue)
-
+library(purrr)
 
 assertSameWeeksForEveryone <- function(dat) {
   unique_weekcounts <- dat %>%
@@ -42,7 +43,7 @@ getDataPaths <- function(data_dir, filter_seasons) {
 }
 
 getPointsOverSeasonFrame <- function(path) {
-  season <- str_extract(path, "(winter|spring|summer|fall)-\\d{4}")
+  season <- str_extract(path, "(winter|spring|summer|fall)-\\d{4}-\\w+")
   assert_that(!is.na(season),
               msg = glue("could not extract season name from path {path}"))
   assert_that(length(path) == 1)
@@ -79,8 +80,9 @@ getSeasonsFrame <- function(paths) {
   paths %>%
     lapply(getPointsOverSeasonFrame) %>%
     dplyr::bind_rows() %>%
-    mutate(of_interest = player %in% PLAYERS_OF_INTEREST_SEASONAL[season][[1]],
-           coloring = if_else(of_interest, POI_COLORS[player], NON_POI_COLOR))
+    dplyr::mutate(
+      of_interest = player %in% PLAYERS_OF_INTEREST_SEASONAL[season][[1]],
+      coloring = if_else(of_interest, POI_COLORS[player], NON_POI_COLOR))
 }
 
 
@@ -88,15 +90,16 @@ getSeasonsFrame <- function(paths) {
 
 DATA_DIR <- "data/"
 PLAYERS_OF_INTEREST_SEASONAL <-
-    list("summer-2026" = c("Maxwell Peterson", "Paul Gonzalez", "Jeremiah Stene"),
-         "spring-2026" = c("Maxwell Peterson", "Jeremiah Stene"),
-         "winter-2026" = c("Maxwell Peterson", "Anna Kinkead", "Jesse Reiter"))
+    list("summer-2026-monday" = c("Maxwell Peterson", "Paul Gonzalez", "Jeremiah Stene"),
+         "spring-2026-monday" = c("Maxwell Peterson", "Jeremiah Stene", "Cedric Thompson"),
+         "winter-2026-monday" = c("Maxwell Peterson", "Anna Kinkead", "Jesse Reiter"))
 
 POI_COLORS <- c("Maxwell Peterson" = "#CD9B1D",
                 "Jeremiah Stene" = "#000000",
                 "Anna Kinkead" = "#8B4513",
                 "Jesse Reiter" = "#388E8E",
-                "Paul Gonzalez" = "#FF83FA")
+                "Paul Gonzalez" = "#87CEFF",
+                "Cedric Thompson" = "#CD3700")
 NON_POI_COLOR = "#C1C1C1"
 
 VALID_SEASONS <- names(PLAYERS_OF_INTEREST_SEASONAL)
@@ -105,13 +108,25 @@ VALID_SEASONS <- names(PLAYERS_OF_INTEREST_SEASONAL)
 setwd('~/fpn-analysis/')
 
 
-paths <- getDataPaths(DATA_DIR, VALID_SEASONS)
-paths <- getDataPaths(DATA_DIR, "spring-2026")
+
+# paths <- getDataPaths(DATA_DIR, VALID_SEASONS)
+SEASON <- "summer-2026-monday"
+season_parts <- stringr::str_split_1(SEASON, '-')
+month_year <- season_parts[1:2] %>% reduce(paste)
+league_day <- stringr::str_to_title(paste(season_parts[3], "League"))
+pretty_season <- stringr::str_to_title(month_year)
+pretty_season
+paths <- getDataPaths(DATA_DIR, SEASON)
 
 dat <- getSeasonsFrame(paths)
 dat
 
 assertSameWeeksForEveryoneMultiSeason(dat)
+
+dat %>% 
+  ungroup() %>%
+  filter(week_number == max(week_number)) %>%
+  arrange(desc(points_so_far))
 
 
 ggplot(mapping = aes(x = week_number, y = points_so_far, 
@@ -119,6 +134,7 @@ ggplot(mapping = aes(x = week_number, y = points_so_far,
            linewidth = of_interest, alpha = of_interest)) +
   geom_line(data = filter(dat, !of_interest)) +
   geom_line(data = filter(dat, of_interest)) +
+  geom_point(data = filter(dat, of_interest), size=1.5) +
   geom_label(
     data = filter(dat, of_interest, week_number == max(week_number)), 
     aes(label = player, x = 1), hjust=0, size=4) +
@@ -134,10 +150,14 @@ ggplot(mapping = aes(x = week_number, y = points_so_far,
   scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.5)) +
   scale_color_identity() +
   scale_linewidth_manual(values = c("TRUE" = 1, "FALSE" = 0.5)) +
-  facet_wrap(~season, ncol = 1) +
+  # facet_wrap(~season, ncol = 1) +
+  labs(y = "Points", title = glue("Cedar Inn Poker, {league_day}, {pretty_season}")) +
   theme_bw() +
-  theme(legend.position = "none", panel.grid.minor.x = element_blank(),
-        axis.title.x = element_blank()) +
-        
-  labs(y = "Points")
+  theme(legend.position = "none", 
+        panel.grid.minor.x = element_blank(),
+        axis.title.x = element_blank(), 
+        axis.text.x = element_text(size=11),
+        axis.text.y = element_text(size=11),
+        title = element_text(size=12))
+dat
 
