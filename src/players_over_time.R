@@ -19,21 +19,40 @@ assertSameWeeksForEveryone <- function(dat) {
 a different number of weeks listed than others.")
 }
 
+getDataPaths <- function(data_dir, filter_str) {
+  paths <- list.files(data_dir) %>%
+    .[str_detect(., filter_str)] %>%
+    sapply(. %>% paste0(data_dir, .))
+}
+
+getPointsOverSeasonDat <- function(paths) {
+  readr::read_csv(paths) %>%
+    dplyr::select(-`Total Points`) %>%
+    tidyr::pivot_longer(!Player, names_to = "date", values_to = "points") %>%
+    dplyr::rename_with(tolower) %>%
+    dplyr::mutate(date = paste0(date, "/2026"),
+                  date = lubridate::mdy(date)) %>%
+    dplyr::arrange(player, date) %>%
+    dplyr::group_by(player) %>%
+    dplyr::mutate(points_so_far = cumsum(points))
+}
+
 setwd('fpn-analysis/')
 
 DATA_DIR <- "data/"
-paths <- list.files(DATA_DIR) %>%
-  .[str_detect(., "summer")] %>%
-  sapply(. %>% paste0(DATA_DIR, .))
-paths
-
-dat <- read_csv(paths) %>%
-  dplyr::select(-`Total Points`) %>%
-  tidyr::pivot_longer(!Player, names_to = "date", values_to = "points") %>%
-  dplyr::rename_with(tolower) %>%
-  dplyr::mutate(date = paste0(date, "/2026"),
-                date = lubridate::mdy(date))
-
+paths <- getDataPaths(DATA_DIR, "summer")
+dat <- getPointsOverSeasonDat(paths)
 assertSameWeeksForEveryone(dat)
 
-mdy(c("06/17/1990", "06/17/1990"))
+players_of_interest <- c("Maxwell Peterson", "Paul Gonzalez")
+dat %<>% mutate(of_interest = any(player == players_of_interest))
+
+dat %>%
+  ggplot(aes(x = date, y = points_so_far, 
+             group = player, color = of_interest)) +
+  geom_line() +
+  scale_x_date(breaks = "week", date_labels = "%B %d") +
+  scale_color_manual(values = c("TRUE" = "black", "FALSE" = "#C1C1C1")) +
+  theme_bw() +
+  theme(legend.position = "none", panel.grid.minor.x = element_blank())
+
