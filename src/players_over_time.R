@@ -1,4 +1,5 @@
 library(ggplot2)
+library(ggrepel)
 library(tibble)
 library(readr)
 library(tidyr)
@@ -8,6 +9,7 @@ library(magrittr)
 library(lubridate)
 library(assertthat)
 library(glue)
+
 
 assertSameWeeksForEveryone <- function(dat) {
   unique_weekcounts <- dat %>%
@@ -64,7 +66,7 @@ addWeekNumberColumn <- function(dat) {
     ungroup() %>%
     select(date) %>% 
     unique() %>% 
-    mutate(week_number = 1:n()) %>%
+    mutate(week_number = 1:n() %>% str_pad(width=2, side="left", pad="0")) %>%
     inner_join(dat, by = c("date"))
   
   assert_that(nrow(result_dat) == orig_rowcount)
@@ -104,7 +106,7 @@ setwd('~/fpn-analysis/')
 
 
 paths <- getDataPaths(DATA_DIR, VALID_SEASONS)
-paths <- getDataPaths(DATA_DIR, "winter-2026")
+paths <- getDataPaths(DATA_DIR, "spring-2026")
 
 dat <- getSeasonsFrame(paths)
 dat
@@ -112,12 +114,15 @@ dat
 assertSameWeeksForEveryoneMultiSeason(dat)
 
 
-ggplot(mapping = aes(x = date, y = points_so_far, 
-                     group = player, color = coloring, 
-                     linewidth = of_interest, alpha = of_interest)) +
+ggplot(mapping = aes(x = week_number, y = points_so_far, 
+           group = player, color = coloring, 
+           linewidth = of_interest, alpha = of_interest)) +
   geom_line(data = filter(dat, !of_interest)) +
   geom_line(data = filter(dat, of_interest)) +
-  scale_x_date(breaks = "week", date_labels = "%b %d") +
+  geom_label(
+    data = filter(dat, of_interest, week_number == max(week_number)), 
+    aes(label = player, x = 1), hjust=0) +
+  #scale_x_date(breaks = "week", date_labels = "%b %d") +
   scale_y_continuous(labels = scales::label_comma()) +
   scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.5)) +
   scale_color_identity() +
@@ -125,4 +130,3 @@ ggplot(mapping = aes(x = date, y = points_so_far,
   facet_wrap(~season, ncol = 1) +
   theme_bw() +
   theme(legend.position = "none", panel.grid.minor.x = element_blank())
-
