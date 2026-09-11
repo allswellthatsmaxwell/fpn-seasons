@@ -92,14 +92,18 @@ DATA_DIR <- "data/"
 PLAYERS_OF_INTEREST_SEASONAL <-
     list("summer-2026-monday" = c("Maxwell Peterson", "Paul Gonzalez", "Jeremiah Stene"),
          "spring-2026-monday" = c("Maxwell Peterson", "Jeremiah Stene", "Cedric Thompson"),
-         "winter-2026-monday" = c("Maxwell Peterson", "Anna Kinkead", "Jesse Reiter"))
+         "winter-2026-monday" = c("Maxwell Peterson", "Anna Kinkead", "Jesse Reiter"),
+         "spring-2026-saturday" = c("Tracy Taylor"),
+         "summer-2026-sunday" = c("Tracy Taylor", "Maxwell Peterson", "Mike Ross"))
 
 POI_COLORS <- c("Maxwell Peterson" = "#CD9B1D",
                 "Jeremiah Stene" = "#000000",
                 "Anna Kinkead" = "#8B4513",
                 "Jesse Reiter" = "#388E8E",
                 "Paul Gonzalez" = "#87CEFF",
-                "Cedric Thompson" = "#CD3700")
+                "Cedric Thompson" = "#CD3700",
+                "Tracy Taylor" = "#FF7256",
+                "Mike Ross" = "#4EEE94")
 NON_POI_COLOR = "#C1C1C1"
 
 VALID_SEASONS <- names(PLAYERS_OF_INTEREST_SEASONAL)
@@ -110,7 +114,7 @@ setwd('~/fpn-analysis/')
 
 
 # paths <- getDataPaths(DATA_DIR, VALID_SEASONS)
-SEASON <- "summer-2026-monday"
+SEASON <- "summer-2026-sunday"
 season_parts <- stringr::str_split_1(SEASON, '-')
 month_year <- season_parts[1:2] %>% reduce(paste)
 league_day <- stringr::str_to_title(paste(season_parts[3], "League"))
