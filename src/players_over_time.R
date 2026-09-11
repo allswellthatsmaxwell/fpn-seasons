@@ -88,7 +88,7 @@ getSeasonsFrame <- function(paths) {
 
 DATA_DIR <- "data/"
 PLAYERS_OF_INTEREST_SEASONAL <-
-    list("summer-2026" = c("Maxwell Peterson", "Paul Gonzalez"),
+    list("summer-2026" = c("Maxwell Peterson", "Paul Gonzalez", "Jeremiah Stene"),
          "spring-2026" = c("Maxwell Peterson", "Jeremiah Stene"),
          "winter-2026" = c("Maxwell Peterson", "Anna Kinkead", "Jesse Reiter"))
 
@@ -106,7 +106,7 @@ setwd('~/fpn-analysis/')
 
 
 paths <- getDataPaths(DATA_DIR, VALID_SEASONS)
-paths <- getDataPaths(DATA_DIR, "winter-2026")
+paths <- getDataPaths(DATA_DIR, "spring-2026")
 
 dat <- getSeasonsFrame(paths)
 dat
@@ -121,14 +121,23 @@ ggplot(mapping = aes(x = week_number, y = points_so_far,
   geom_line(data = filter(dat, of_interest)) +
   geom_label(
     data = filter(dat, of_interest, week_number == max(week_number)), 
-    aes(label = player, x = 1), hjust=0) +
+    aes(label = player, x = 1), hjust=0, size=4) +
+  geom_text(
+    data = filter(dat, of_interest, week_number == max(week_number)), 
+    size=4,
+    position=position_nudge(x=0.1),
+    aes(label = format(points_so_far, big.mark=',')), hjust=0) +
   # scale_x_date(breaks = "week", date_labels = "%b %d") +
-  scale_x_discrete(labels = dat$date %>% unique() %>% format("%b %d")) +
+  scale_x_discrete(labels = dat$date %>% unique() %>% format("%b %d"),
+                   expand = expansion(add = c(0.2, 1))) +
   scale_y_continuous(labels = scales::label_comma()) +
   scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.5)) +
   scale_color_identity() +
   scale_linewidth_manual(values = c("TRUE" = 1, "FALSE" = 0.5)) +
   facet_wrap(~season, ncol = 1) +
   theme_bw() +
-  theme(legend.position = "none", panel.grid.minor.x = element_blank())
+  theme(legend.position = "none", panel.grid.minor.x = element_blank(),
+        axis.title.x = element_blank()) +
+        
+  labs(y = "Points")
 
