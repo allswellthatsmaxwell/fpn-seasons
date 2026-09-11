@@ -77,8 +77,8 @@ getSeasonsFrame <- function(paths) {
   paths %>%
     lapply(getPointsOverSeasonFrame) %>%
     dplyr::bind_rows() %>%
-    mutate(of_interest = player %in% PLAYERS_OF_INTEREST_SEASONAL[season][[1]]) %>%
-    ungroup()
+    mutate(of_interest = player %in% PLAYERS_OF_INTEREST_SEASONAL[season][[1]],
+           coloring = if_else(of_interest, POI_COLORS[player], NON_POI_COLOR))
 }
 
 
@@ -88,7 +88,14 @@ DATA_DIR <- "data/"
 PLAYERS_OF_INTEREST_SEASONAL <-
     list("summer-2026" = c("Maxwell Peterson", "Paul Gonzalez"),
          "spring-2026" = c("Maxwell Peterson", "Jeremiah Stene"),
-         "winter-2026" = c("Maxwell Peterson", "Anna Kinkead"))
+         "winter-2026" = c("Maxwell Peterson", "Anna Kinkead", "Jesse Reiter"))
+
+POI_COLORS <- c("Maxwell Peterson" = "#FFC125",
+                "Jeremiah Stene" = "#000000",
+                "Anna Kinkead" = "#8B4513",
+                "Jesse Reiter" = "#388E8E",
+                "Paul Gonzalez" = "#FF83FA")
+NON_POI_COLOR = "#C1C1C1"
 
 VALID_SEASONS <- names(PLAYERS_OF_INTEREST_SEASONAL)
 
@@ -105,14 +112,16 @@ dat
 assertSameWeeksForEveryoneMultiSeason(dat)
 
 
-dat %>%
-  ggplot(aes(x = date, y = points_so_far, 
-             group = player, color = of_interest, size = of_interest)) +
-  geom_line() +
+ggplot(mapping = aes(x = date, y = points_so_far, 
+                     group = player, color = coloring, 
+                     linewidth = of_interest, alpha = of_interest)) +
+  geom_line(data = filter(dat, !of_interest)) +
+  geom_line(data = filter(dat, of_interest)) +
   scale_x_date(breaks = "week", date_labels = "%b %d") +
   scale_y_continuous(labels = scales::label_comma()) +
-  scale_color_manual(values = c("TRUE" = "black", "FALSE" = "#C1C1C1")) +
-  scale_size_manual(values = c("TRUE" = 1, "FALSE" = 0.5)) +
+  scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.5)) +
+  scale_color_identity() +
+  scale_linewidth_manual(values = c("TRUE" = 1, "FALSE" = 0.5)) +
   facet_wrap(~season, ncol = 1) +
   theme_bw() +
   theme(legend.position = "none", panel.grid.minor.x = element_blank())
