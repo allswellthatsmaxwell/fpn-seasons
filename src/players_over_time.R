@@ -91,6 +91,7 @@ getSeasonsFrame <- function(paths) {
 DATA_DIR <- "data/"
 PLAYERS_OF_INTEREST_SEASONAL <-
     list("summer-2026-monday" = c("Maxwell Peterson", "Paul Gonzalez", "Jeremiah Stene"),
+                                  # "Tracy Taylor"),
          "spring-2026-monday" = c("Maxwell Peterson", "Jeremiah Stene", "Cedric Thompson"),
          "winter-2026-monday" = c("Maxwell Peterson", "Anna Kinkead", "Jesse Reiter"),
          "spring-2026-saturday" = c("Tracy Taylor"),
@@ -100,11 +101,12 @@ POI_COLORS <- c("Maxwell Peterson" = "#CD9B1D",
                 "Jeremiah Stene" = "#000000",
                 "Anna Kinkead" = "#8B4513",
                 "Jesse Reiter" = "#388E8E",
-                "Paul Gonzalez" = "#87CEFF",
+                "Paul Gonzalez" = "#27408B",
                 "Cedric Thompson" = "#CD3700",
                 "Tracy Taylor" = "#FF7256",
                 "Mike Ross" = "#4EEE94")
 NON_POI_COLOR = "#C1C1C1"
+NON_POI_COLOR = "#87CEFF"
 
 VALID_SEASONS <- names(PLAYERS_OF_INTEREST_SEASONAL)
 
@@ -114,7 +116,7 @@ setwd('~/fpn-analysis/')
 
 
 # paths <- getDataPaths(DATA_DIR, VALID_SEASONS)
-SEASON <- "summer-2026-sunday"
+SEASON <- "winter-2026-monday"
 season_parts <- stringr::str_split_1(SEASON, '-')
 month_year <- season_parts[1:2] %>% reduce(paste)
 league_day <- stringr::str_to_title(paste(season_parts[3], "League"))
@@ -123,6 +125,11 @@ pretty_season
 paths <- getDataPaths(DATA_DIR, SEASON)
 
 dat <- getSeasonsFrame(paths)
+dat %<>%
+  filter(week_number == "01") %>%
+  mutate(week_number = "00", points = 0, points_so_far = 0) %>% 
+  bind_rows(dat)
+
 dat
 
 assertSameWeeksForEveryoneMultiSeason(dat)
@@ -132,36 +139,46 @@ dat %>%
   filter(week_number == max(week_number)) %>%
   arrange(desc(points_so_far))
 
+dat
 
-ggplot(mapping = aes(x = week_number, y = points_so_far, 
+p <- ggplot(mapping = aes(x = week_number, y = points_so_far, 
            group = player, color = coloring, 
            linewidth = of_interest, alpha = of_interest)) +
+  geom_hline(yintercept = 0, color = "#C1C1C1") +
   geom_line(data = filter(dat, !of_interest)) +
   geom_line(data = filter(dat, of_interest)) +
   geom_point(data = filter(dat, of_interest), size=1.5) +
+  
   geom_label(
     data = filter(dat, of_interest, week_number == max(week_number)), 
-    aes(label = player, x = 1), hjust=0, size=4) +
+    aes(label = player, x = 1), 
+    # fontface = "Hoefler Text",
+    hjust=0, size=4) +
   geom_text(
     data = filter(dat, of_interest, week_number == max(week_number)), 
     size=4,
     position=position_nudge(x=0.1),
     aes(label = format(points_so_far, big.mark=',')), hjust=0) +
   # scale_x_date(breaks = "week", date_labels = "%b %d") +
-  scale_x_discrete(labels = dat$date %>% unique() %>% format("%b %d"),
+  scale_x_discrete(labels = c("Start", dat$date %>% unique() %>% format("%b %d")),
                    expand = expansion(add = c(0.2, 1))) +
   scale_y_continuous(labels = scales::label_comma()) +
   scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.5)) +
   scale_color_identity() +
-  scale_linewidth_manual(values = c("TRUE" = 1, "FALSE" = 0.5)) +
+  scale_linewidth_manual(values = c("TRUE" = 1.3, "FALSE" = 0.5)) +
   # facet_wrap(~season, ncol = 1) +
   labs(y = "Points", title = glue("Cedar Inn Poker, {league_day}, {pretty_season}")) +
   theme_bw() +
   theme(legend.position = "none", 
-        panel.grid.minor.x = element_blank(),
+        # panel.grid.minor.x = element_blank(),
         axis.title.x = element_blank(), 
         axis.text.x = element_text(size=11),
         axis.text.y = element_text(size=11),
-        title = element_text(size=12))
-dat
+        panel.grid.major.y = element_blank(),
+        panel.grid.major.x = element_line(linewidth=0.3),
+        panel.grid.minor = element_blank(),
+        plot.title = element_text(size=16, family = "Copperplate"))
+p
+
+ggsave(glue('out/{league_day} {pretty_season}.png'), plot=p)
 
