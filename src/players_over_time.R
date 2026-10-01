@@ -11,6 +11,7 @@ library(lubridate)
 library(assertthat)
 library(glue)
 library(purrr)
+library(showtext)
 
 assertSameWeeksForEveryone <- function(dat) {
   unique_weekcounts <- dat %>%
@@ -30,6 +31,7 @@ assertSameWeeksForEveryoneMultiSeason <- function(dat) {
     invisible()
 }
 
+
 getDataPaths <- function(data_dir, filter_seasons) {
   assert_that(all(filter_seasons %in% VALID_SEASONS), 
               msg = glue("invalid season found in filter_seasons: '{filter_seasons}'"))
@@ -41,6 +43,7 @@ getDataPaths <- function(data_dir, filter_seasons) {
                          "filter_seasons '{filter_seasons}'"))
   paths
 }
+
 
 getPointsOverSeasonFrame <- function(path) {
   season <- str_extract(path, "(winter|spring|summer|fall)-\\d{4}-\\w+")
@@ -81,6 +84,7 @@ getSeasonsFrame <- function(paths) {
     lapply(getPointsOverSeasonFrame) %>%
     dplyr::bind_rows() %>%
     dplyr::mutate(
+      player = dplyr::if_else(player == "Rafael Fuentes (Rafi)", "Rafael Fuentes", player),
       of_interest = player %in% PLAYERS_OF_INTEREST_SEASONAL[season][[1]],
       coloring = if_else(of_interest, POI_COLORS[player], NON_POI_COLOR))
 }
@@ -92,6 +96,7 @@ DATA_DIR <- "data/"
 PLAYERS_OF_INTEREST_SEASONAL <-
     list("summer-2026-monday" = c("Maxwell Peterson", "Paul Gonzalez", "Jeremiah Stene"),
                                   # "Tracy Taylor"),
+         "summer-2026-saturday" = c("Tracy Taylor", "Cedric Thompson", "Jeff Stokke", "Rafael Fuentes"),
          "spring-2026-monday" = c("Maxwell Peterson", "Jeremiah Stene", "Cedric Thompson"),
          "winter-2026-monday" = c("Maxwell Peterson", "Anna Kinkead", "Jesse Reiter"),
          "spring-2026-saturday" = c("Tracy Taylor"),
@@ -104,7 +109,9 @@ POI_COLORS <- c("Maxwell Peterson" = "#CD9B1D",
                 "Paul Gonzalez" = "#27408B",
                 "Cedric Thompson" = "#CD3700",
                 "Tracy Taylor" = "#FF7256",
-                "Mike Ross" = "#4EEE94")
+                "Mike Ross" = "#388E8E",
+                "Jeff Stokke" = "#551A8B",
+                "Rafael Fuentes" = "#1874CD")
 NON_POI_COLOR = "#C1C1C1"
 NON_POI_COLOR = "#87CEFF"
 
@@ -112,11 +119,12 @@ VALID_SEASONS <- names(PLAYERS_OF_INTEREST_SEASONAL)
 
 
 setwd('~/fpn-analysis/')
+font_add_google("Hoefler")
 
 
 
 # paths <- getDataPaths(DATA_DIR, VALID_SEASONS)
-SEASON <- "winter-2026-monday"
+SEASON <- "summer-2026-saturday"
 season_parts <- stringr::str_split_1(SEASON, '-')
 month_year <- season_parts[1:2] %>% reduce(paste)
 league_day <- stringr::str_to_title(paste(season_parts[3], "League"))
@@ -124,13 +132,13 @@ pretty_season <- stringr::str_to_title(month_year)
 pretty_season
 paths <- getDataPaths(DATA_DIR, SEASON)
 
+
 dat <- getSeasonsFrame(paths)
 dat %<>%
   filter(week_number == "01") %>%
   mutate(week_number = "00", points = 0, points_so_far = 0) %>% 
   bind_rows(dat)
 
-dat
 
 assertSameWeeksForEveryoneMultiSeason(dat)
 
@@ -139,7 +147,8 @@ dat %>%
   filter(week_number == max(week_number)) %>%
   arrange(desc(points_so_far))
 
-dat
+
+mgn <- 0.25
 
 p <- ggplot(mapping = aes(x = week_number, y = points_so_far, 
            group = player, color = coloring, 
@@ -147,12 +156,12 @@ p <- ggplot(mapping = aes(x = week_number, y = points_so_far,
   geom_hline(yintercept = 0, color = "#C1C1C1") +
   geom_line(data = filter(dat, !of_interest)) +
   geom_line(data = filter(dat, of_interest)) +
-  geom_point(data = filter(dat, of_interest), size=1.5) +
-  
+  # geom_point(data = filter(dat, of_interest), size=1.5) +
   geom_label(
-    data = filter(dat, of_interest, week_number == max(week_number)), 
-    aes(label = player, x = 1), 
-    # fontface = "Hoefler Text",
+    data = filter(dat, of_interest, week_number == max(week_number)),
+    aes(label = player, x = 1),
+    linewidth = 1,
+    family = "Hoefler Text",
     hjust=0, size=4) +
   geom_text(
     data = filter(dat, of_interest, week_number == max(week_number)), 
@@ -177,8 +186,12 @@ p <- ggplot(mapping = aes(x = week_number, y = points_so_far,
         panel.grid.major.y = element_blank(),
         panel.grid.major.x = element_line(linewidth=0.3),
         panel.grid.minor = element_blank(),
-        plot.title = element_text(size=16, family = "Copperplate"))
+        plot.margin = margin(mgn, mgn, mgn, mgn, "in"),
+        plot.title = element_text(size=20, family = "Copperplate"))
 p
 
-ggsave(glue('out/{league_day} {pretty_season}.png'), plot=p)
+ggsave(glue('out/{league_day} {pretty_season}.png'), plot=p,
+       units = "in", width=9.5, height=5)
+
+dev.size()
 
