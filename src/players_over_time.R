@@ -124,7 +124,7 @@ font_add_google("Hoefler")
 
 
 # paths <- getDataPaths(DATA_DIR, VALID_SEASONS)
-SEASON <- "summer-2026-saturday"
+SEASON <- "summer-2026-sunday"
 season_parts <- stringr::str_split_1(SEASON, '-')
 month_year <- season_parts[1:2] %>% reduce(paste)
 league_day <- stringr::str_to_title(paste(season_parts[3], "League"))
@@ -191,7 +191,10 @@ p <- ggplot(mapping = aes(x = week_number, y = points_so_far,
 p
 
 ggsave(glue('out/{league_day} {pretty_season}.png'), plot=p,
-       units = "in", width=9.5, height=5)
+       units = "in", width=16, height=8)
 
 dev.size()
+# [1] 14.47917  7.62500 first candidate
+# 15.395833  7.354167 bigger
+# 1
 
