@@ -124,7 +124,7 @@ font_add_google("Hoefler")
 
 
 # paths <- getDataPaths(DATA_DIR, VALID_SEASONS)
-SEASON <- "summer-2026-sunday"
+SEASON <- "summer-2026-monday"
 season_parts <- stringr::str_split_1(SEASON, '-')
 month_year <- season_parts[1:2] %>% reduce(paste)
 league_day <- stringr::str_to_title(paste(season_parts[3], "League"))
@@ -148,7 +148,7 @@ dat %>%
   arrange(desc(points_so_far))
 
 
-mgn <- 0.25
+mgn <- 0.7
 
 p <- ggplot(mapping = aes(x = week_number, y = points_so_far, 
            group = player, color = coloring, 
@@ -162,10 +162,10 @@ p <- ggplot(mapping = aes(x = week_number, y = points_so_far,
     aes(label = player, x = 1),
     linewidth = 1,
     family = "Hoefler Text",
-    hjust=0, size=4) +
+    hjust=0, size=6) +
   geom_text(
     data = filter(dat, of_interest, week_number == max(week_number)), 
-    size=4,
+    size=6,
     position=position_nudge(x=0.1),
     aes(label = format(points_so_far, big.mark=',')), hjust=0) +
   # scale_x_date(breaks = "week", date_labels = "%b %d") +
@@ -174,24 +174,25 @@ p <- ggplot(mapping = aes(x = week_number, y = points_so_far,
   scale_y_continuous(labels = scales::label_comma()) +
   scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.5)) +
   scale_color_identity() +
-  scale_linewidth_manual(values = c("TRUE" = 1.3, "FALSE" = 0.5)) +
+  scale_linewidth_manual(values = c("TRUE" = 2, "FALSE" = 0.5)) +
   # facet_wrap(~season, ncol = 1) +
   labs(y = "Points", title = glue("Cedar Inn Poker, {league_day}, {pretty_season}")) +
   theme_bw() +
   theme(legend.position = "none", 
         # panel.grid.minor.x = element_blank(),
         axis.title.x = element_blank(), 
-        axis.text.x = element_text(size=11),
-        axis.text.y = element_text(size=11),
+        axis.title.y = element_blank(), #element_text(size=14),
+        axis.text.x = element_text(size=15),
+        axis.text.y = element_text(size=16),
         panel.grid.major.y = element_blank(),
         panel.grid.major.x = element_line(linewidth=0.3),
         panel.grid.minor = element_blank(),
         plot.margin = margin(mgn, mgn, mgn, mgn, "in"),
-        plot.title = element_text(size=20, family = "Copperplate"))
+        plot.title = element_text(size=30, family = "Copperplate"))
 p
 
 ggsave(glue('out/{league_day} {pretty_season}.png'), plot=p,
-       units = "in", width=16, height=8)
+       units = "in", width=14, height=7)
 
 dev.size()
 # [1] 14.47917  7.62500 first candidate
