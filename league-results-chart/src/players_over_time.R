@@ -12,6 +12,7 @@ library(assertthat)
 library(glue)
 library(purrr)
 library(showtext)
+library(forcats)
 
 assertSameWeeksForEveryone <- function(dat) {
   unique_weekcounts <- dat %>%
@@ -93,42 +94,51 @@ getSeasonsFrame <- function(paths) {
 
 
 DATA_DIR <- "data/"
+RAFA_MODE <- TRUE
+
 PLAYERS_OF_INTEREST_SEASONAL <-
     list("summer-2026-monday" = c("Maxwell Peterson", "Paul Gonzalez", "Jeremiah Stene"),
                                   # "Tracy Taylor"),
-         "summer-2026-saturday" = c("Tracy Taylor", "Cedric Thompson", "Jeff Stokke", "Rafael Fuentes"),
+         "summer-2026-saturday" = c("Tracy Taylor", "Cedric Thompson", "Jeff Stokke"),
          "spring-2026-monday" = c("Maxwell Peterson", "Jeremiah Stene", "Cedric Thompson"),
          "winter-2026-monday" = c("Maxwell Peterson", "Anna Kinkead", "Jesse Reiter"),
          "spring-2026-saturday" = c("Tracy Taylor"),
-         "summer-2026-sunday" = c("Tracy Taylor", "Maxwell Peterson", "Mike Ross"))
+         "summer-2026-sunday" = if (RAFA_MODE) c("Rafael Fuentes", "Paul Gonzalez", "Anna Thao") else c("Tracy Taylor", "Maxwell Peterson", "Mike Ross"))
 
 POI_COLORS <- c("Maxwell Peterson" = "#CD9B1D",
                 "Jeremiah Stene" = "#000000",
                 "Anna Kinkead" = "#8B4513",
                 "Jesse Reiter" = "#388E8E",
                 "Paul Gonzalez" = "#27408B",
-                "Cedric Thompson" = "#CD3700",
+                "Cedric Thompson" = "#4876FF",
                 "Tracy Taylor" = "#FF7256",
                 "Mike Ross" = "#388E8E",
+                "Chad Rasche" = "#FF8000",
                 "Jeff Stokke" = "#551A8B",
-                "Rafael Fuentes" = "#1874CD")
+                "Rafael Fuentes" = "#CD661D",
+                "Anna Thao" = "#308014")
 NON_POI_COLOR = "#C1C1C1"
 NON_POI_COLOR = "#87CEFF"
 
 VALID_SEASONS <- names(PLAYERS_OF_INTEREST_SEASONAL)
 
-
+dat
 setwd('~/fpn-analysis/')
 font_add_google("Hoefler")
 
 
 
 # paths <- getDataPaths(DATA_DIR, VALID_SEASONS)
-SEASON <- "summer-2026-monday"
+SEASON <- "summer-2026-sunday"
+
+#SEASON <- "summer-2026-sunday"
+#SEASON <- "summer-2026-monday"
 season_parts <- stringr::str_split_1(SEASON, '-')
 month_year <- season_parts[1:2] %>% reduce(paste)
 league_day <- stringr::str_to_title(paste(season_parts[3], "League"))
 pretty_season <- stringr::str_to_title(month_year)
+rafa_str <- if (RAFA_MODE) ' rafa_mode' else ''
+outpath <- glue('out/{league_day} {pretty_season}{rafa_str}.png')
 pretty_season
 paths <- getDataPaths(DATA_DIR, SEASON)
 
@@ -137,8 +147,11 @@ dat <- getSeasonsFrame(paths)
 dat %<>%
   filter(week_number == "01") %>%
   mutate(week_number = "00", points = 0, points_so_far = 0) %>% 
-  bind_rows(dat)
-
+  bind_rows(dat) %>%
+  group_by(player) %>%
+  mutate(max_points = max(points_so_far)) %>%
+  ungroup() %>%
+  mutate(player = fct_reorder(player, max_points))
 
 assertSameWeeksForEveryoneMultiSeason(dat)
 
@@ -146,7 +159,9 @@ dat %>%
   ungroup() %>%
   filter(week_number == max(week_number)) %>%
   arrange(desc(points_so_far))
+  
 
+player_label_size = size = if(SEASON == "summer-2026-saturday") 5 else 6
 
 mgn <- 0.7
 
@@ -159,15 +174,23 @@ p <- ggplot(mapping = aes(x = week_number, y = points_so_far,
   # geom_point(data = filter(dat, of_interest), size=1.5) +
   geom_label(
     data = filter(dat, of_interest, week_number == max(week_number)),
-    aes(label = player, x = 1),
+    aes(label = player, x = 1, 
+        y = if_else(player == "Jeff Stokke", points_so_far - 10, 
+                    if_else(SEASON == "summer-2026-sunday" & player == "Paul Gonzalez", 
+                            points_so_far - 70, 
+                            if_else(season == "summer-2026-sunday" & player == "Anna Thao", 
+                                    points_so_far - 60, points_so_far)))),
     linewidth = 1,
     family = "Hoefler Text",
-    hjust=0, size=6) +
+    hjust = 0, size = player_label_size) +
   geom_text(
     data = filter(dat, of_interest, week_number == max(week_number)), 
     size=6,
     position=position_nudge(x=0.1),
-    aes(label = format(points_so_far, big.mark=',')), hjust=0) +
+    aes(y = if_else(SEASON == "summer-2026-sunday" & player == "Paul Gonzalez", 
+                     points_so_far - 40,
+                     points_so_far),
+         label = format(points_so_far, big.mark=',')), hjust=0) +
   # scale_x_date(breaks = "week", date_labels = "%b %d") +
   scale_x_discrete(labels = c("Start", dat$date %>% unique() %>% format("%b %d")),
                    expand = expansion(add = c(0.2, 1))) +
@@ -191,7 +214,7 @@ p <- ggplot(mapping = aes(x = week_number, y = points_so_far,
         plot.title = element_text(size=30, family = "Copperplate"))
 p
 
-ggsave(glue('out/{league_day} {pretty_season}.png'), plot=p,
+ggsave(glue(outpath), plot=p,
        units = "in", width=14, height=7)
 
 dev.size()
