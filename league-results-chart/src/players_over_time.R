@@ -34,9 +34,9 @@ assertSameWeeksForEveryoneMultiSeason <- function(dat) {
 
 
 getDataPaths <- function(data_dir, filter_seasons) {
-  assert_that(all(filter_seasons %in% VALID_SEASONS), 
-              msg = glue("invalid season found in filter_seasons: '{filter_seasons}'"))
-  paths <- list.files(data_dir) %>%
+  #assert_that(all(filter_seasons %in% VALID_SEASONS), 
+  #            msg = glue("invalid season found in filter_seasons: '{filter_seasons}'"))
+  paths <- list.files(data_dir) %>% c() %>%
     .[sapply(., function(s) s %>% str_detect(filter_seasons) %>% any())] %>%
     sapply(. %>% paste0(data_dir, .))
   assert_that(length(paths) > 0, 
@@ -91,7 +91,7 @@ getSeasonsFrame <- function(paths) {
 }
 
 
-
+list.files(DATA_DIR)
 
 DATA_DIR <- "data/"
 RAFA_MODE <- TRUE
@@ -123,12 +123,12 @@ NON_POI_COLOR = "#87CEFF"
 VALID_SEASONS <- names(PLAYERS_OF_INTEREST_SEASONAL)
 
 dat
-setwd('~/fpn-analysis/')
+setwd('~/fpn-analysis/league-results-chart')
 font_add_google("Hoefler")
 
 
 
-# paths <- getDataPaths(DATA_DIR, VALID_SEASONS)
+paths <- getDataPaths(DATA_DIR, VALID_SEASONS)
 SEASON <- "summer-2026-sunday"
 
 #SEASON <- "summer-2026-sunday"
